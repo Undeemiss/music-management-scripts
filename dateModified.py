@@ -40,8 +40,7 @@ def apply_timestamps(mp3_files_info):
             file_path = current_files[filename]
             os.utime(file_path, (original_timestamp, original_timestamp))
         else:
-            print(f"Warning: {
-                  filename} is listed in the JSON but not found in the current directory.")
+            print(f"Warning: {filename} not found.")
 
 
 def main():
