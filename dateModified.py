@@ -3,6 +3,7 @@ import json
 import sys
 import argparse
 import shutil
+import time
 
 
 def get_mp3_file_info():
@@ -44,7 +45,7 @@ def apply_timestamps(mp3_files_info):
             print(f"Warning: {filename} not found.")
 
 
-def recreate_files_sequentially(mp3_files_info):
+def recreate_files_sequentially(mp3_files_info, sleep_time):
     current_directory = os.getcwd()
     current_files = {filename: os.path.join(
         current_directory, filename) for filename in os.listdir(current_directory)}
@@ -52,7 +53,8 @@ def recreate_files_sequentially(mp3_files_info):
     # Sort files by timestamp (oldest to newest)
     mp3_files_info.sort(key=lambda x: x[1])
 
-    for filename, original_timestamp in mp3_files_info:
+    total_files = len(mp3_files_info)
+    for i, (filename, _) in enumerate(mp3_files_info, start=1):
         if filename in current_files:
             file_path = current_files[filename]
             temp_path = file_path + ".temp"
@@ -65,6 +67,12 @@ def recreate_files_sequentially(mp3_files_info):
             # Set the atime and mtime to the current timestamp to prevent invalid data
             new_timestamp = os.stat(file_path).st_ctime
             os.utime(file_path, (new_timestamp, new_timestamp))
+
+            # Print progress information
+            print(f"({i}/{total_files}) {filename}")
+
+            # Sleep for the specified duration
+            time.sleep(sleep_time)
         else:
             print(f"Warning: {filename} not found.")
 
@@ -79,13 +87,13 @@ def main():
                         help="Read and save MP3 timestamps to JSON.")
     parser.add_argument('-w', '--write', action='store_true',
                         help="Write timestamps from JSON to MP3 files.")
-    parser.add_argument('-s', '--sequence', action='store_true',
-                        help="Recreate files sequentially by timestamp.")
+    parser.add_argument('-s', '--sequence', type=float, nargs='?', const=0,
+                        help="Recreate files sequentially by timestamp, with an optional sleep time between files (in seconds).")
 
     args = parser.parse_args()
 
     # Handle conflicting switches
-    if sum([args.read, args.write, args.sequence]) > 1:
+    if sum([args.read, args.write, args.sequence is not None]) > 1:
         print("Error: Only one action can be specified at a time. Please choose -r, -w, or -s.")
         sys.exit(1)
 
@@ -96,9 +104,10 @@ def main():
     elif args.write:
         mp3_files_info = load_from_json(args.json_path)
         apply_timestamps(mp3_files_info)
-    elif args.sequence:
+    elif args.sequence is not None:
         mp3_files_info = load_from_json(args.json_path)
-        recreate_files_sequentially(mp3_files_info)
+        sleep_time = args.sequence if args.sequence else 0
+        recreate_files_sequentially(mp3_files_info, sleep_time)
     else:
         print("Error: No action specified. Use -r to read timestamps, -w to write them, or -s to sequence files.")
 
